@@ -12,7 +12,7 @@ venv/
 .env
 
 # Migrations cache
-migrations/versions/
+migrations/
 
 # IDE / Editor
 .vscode/
