@@ -11,8 +11,9 @@ venv/
 # Environment files
 .env
 
-# Migrations cache
+# DB
 migrations/
+instance/
 
 # IDE / Editor
 .vscode/
