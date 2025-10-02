@@ -35,8 +35,6 @@ def create_app():
     CORS(app)
 
     from app import models  # Ensure models are imported for migrations
-    from app import routes  # Ensure routes are imported
-    from app import auth    # Ensure auth is imported
 
     # Register blueprints
     from app.auth import auth_bp

@@ -44,8 +44,10 @@ def login():
     if not user or not user.check_password(data["password"]):
         return jsonify({"msg": "Invalid email or password"}), 401
 
-    # ✅ identity must be int or string
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role}
+        )
 
     return jsonify({
         "access_token": access_token,
