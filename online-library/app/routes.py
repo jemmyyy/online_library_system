@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db
 from app.models import Book, Reservation, Notification
-from app.utils import role_required
+from app.utils import role_required, create_notification
 from datetime import datetime, timedelta
 
 main_bp = Blueprint("main", __name__)
@@ -125,6 +125,7 @@ def create_reservation():
     )
     db.session.add(reservation)
     db.session.commit()
+    create_notification(reservation.user_id, f"Your reservation for '{book.title}' has been created, pending approval.")
 
     return jsonify({"msg": "Reservation created", "id": reservation.id}), 201
 
@@ -150,10 +151,12 @@ def update_reservation(res_id):
         book.available_copies -= 1
         reservation.status = "approved"
         reservation.due_date = datetime.now() + timedelta(days=14)
+
     else:
         reservation.status = "rejected"
 
     db.session.commit()
+    create_notification(reservation.user_id, f"Your reservation for '{book.title}' has been {reservation.status}.")
     return jsonify({"msg": f"Reservation {reservation.status}"}), 200
 
 @main_bp.route("/reservations/<int:res_id>/return", methods=["POST"])
@@ -161,6 +164,7 @@ def update_reservation(res_id):
 def request_return(res_id):
     user_id = get_jwt_identity()
     reservation = Reservation.query.get_or_404(res_id)
+    book = Book.query.get(reservation.book_id)
 
     if reservation.user_id != int(user_id):
         return jsonify({"msg": "You can only return your own reservations"}), 403
@@ -172,6 +176,8 @@ def request_return(res_id):
     reservation.status = "returned"
     reservation.returned_at = datetime.now()
     db.session.commit()
+
+    create_notification(reservation.user_id, f"Your return request for '{book.title}' has been submitted.")
 
     return jsonify({"msg": "Return requested"}), 200
 
@@ -190,4 +196,36 @@ def confirm_return(res_id):
     reservation.status = "completed"
     db.session.commit()
 
+    create_notification(reservation.user_id, f"Your return for '{book.title}' has been confirmed.")
+
     return jsonify({"msg": "Return confirmed, book available again"}), 200
+
+@main_bp.route("/notifications", methods=["GET"])
+@jwt_required()
+def get_notifications():
+    user_id = get_jwt_identity()
+    notifs = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+
+    result = [
+        {
+            "id": n.id,
+            "message": n.message,
+            "read": n.read,
+            "created_at": n.created_at
+        }
+        for n in notifs
+    ]
+    return jsonify(result), 200
+
+@main_bp.route("/notifications/<int:notif_id>/read", methods=["PUT"])
+@jwt_required()
+def mark_notification_as_read(notif_id):
+    user_id = get_jwt_identity()
+    notif = Notification.query.get_or_404(notif_id)
+
+    if notif.user_id != int(user_id):
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    notif.read = True
+    db.session.commit()
+    return jsonify({"msg": "Notification marked as read"}), 200
