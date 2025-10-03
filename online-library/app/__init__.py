@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
@@ -11,6 +11,20 @@ migrate = Migrate()
 bcrypt = Bcrypt()
 jwt = JWTManager()
 
+def register_error_handlers(app):
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({"msg": "Resource not found"}), 404
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({"msg": "Bad request"}), 400
+
+    @app.errorhandler(500)
+    def server_error(error):
+        return jsonify({"msg": "Internal server error"}), 500
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object("config.Config")
@@ -20,6 +34,7 @@ def create_app():
     bcrypt.init_app(app)
     jwt.init_app(app)
     CORS(app)
+    register_error_handlers(app)
 
     from app.models import TokenBlocklist
     @jwt.token_in_blocklist_loader
@@ -36,3 +51,4 @@ def create_app():
     app.register_blueprint(main_bp, url_prefix="/api")
 
     return app
+

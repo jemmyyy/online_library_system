@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
 from app import db
 from app.models import Book, Reservation, Notification
 from app.utils import role_required, create_notification
@@ -204,7 +204,12 @@ def confirm_return(res_id):
 @jwt_required()
 def get_notifications():
     user_id = get_jwt_identity()
-    notifs = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+
+    query = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     result = [
         {
@@ -213,19 +218,51 @@ def get_notifications():
             "read": n.read,
             "created_at": n.created_at
         }
-        for n in notifs
+        for n in pagination.items
     ]
-    return jsonify(result), 200
 
-@main_bp.route("/notifications/<int:notif_id>/read", methods=["PUT"])
+    return jsonify({
+        "data": result,
+        "meta": {
+            "total": pagination.total,
+            "page": pagination.page,
+            "pages": pagination.pages
+        }
+    }), 200
+
+@main_bp.route("/reservations", methods=["GET"])
 @jwt_required()
-def mark_notification_as_read(notif_id):
+def list_reservations():
     user_id = get_jwt_identity()
-    notif = Notification.query.get_or_404(notif_id)
+    claims = get_jwt()
 
-    if notif.user_id != int(user_id):
-        return jsonify({"msg": "Unauthorized"}), 403
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
 
-    notif.read = True
-    db.session.commit()
-    return jsonify({"msg": "Notification marked as read"}), 200
+    query = Reservation.query
+    if claims.get("role") != "librarian":
+        query = query.filter_by(user_id=user_id)
+
+    pagination = query.order_by(Reservation.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    result = [
+        {
+            "id": r.id,
+            "user_id": r.user_id,
+            "book_id": r.book_id,
+            "status": r.status,
+            "created_at": r.created_at,
+            "due_date": r.due_date,
+            "returned_at": r.returned_at
+        }
+        for r in pagination.items
+    ]
+
+    return jsonify({
+        "data": result,
+        "meta": {
+            "total": pagination.total,
+            "page": pagination.page,
+            "pages": pagination.pages
+        }
+    }), 200
