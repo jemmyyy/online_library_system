@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db
 from app.models import Book, Reservation, Notification
 from app.utils import role_required
+from datetime import datetime, timedelta
 
 main_bp = Blueprint("main", __name__)
 
@@ -119,8 +120,8 @@ def create_reservation():
         user_id=user_id,
         book_id=book_id,
         status="pending",
-        created_at=datetime.utcnow(),
-        due_date=datetime.utcnow() + timedelta(days=14)  # 2 weeks loan
+        created_at=datetime.now(),
+        due_date=datetime.now() + timedelta(days=14)  # 2 weeks loan
     )
     db.session.add(reservation)
     db.session.commit()
@@ -134,23 +135,26 @@ def update_reservation(res_id):
     data = request.get_json()
     status = data.get("status")
 
-    if status in ["approved", "rejected"]:
-        return jsonify({"msg": "Alredy processed."}), 400
+    if status not in ["approved", "rejected"]:
+        return jsonify({"msg": "Invalid status."}), 400
 
     reservation = Reservation.query.get_or_404(res_id)
     book = Book.query.get(reservation.book_id)
 
-    if status == "pending":
+    if reservation.status != "pending":
+        return jsonify({"msg": "Reservation already processed"}), 400
+
+    if status == "approved":
         if book.available_copies <= 0:
             return jsonify({"msg": "No copies available"}), 400
         book.available_copies -= 1
         reservation.status = "approved"
-        reservation.due_date = datetime.utcnow() + timedelta(days=14)
+        reservation.due_date = datetime.now() + timedelta(days=14)
     else:
         reservation.status = "rejected"
 
     db.session.commit()
-    return jsonify({"msg": f"Reservation {status}"}), 200
+    return jsonify({"msg": f"Reservation {reservation.status}"}), 200
 
 @main_bp.route("/reservations/<int:res_id>/return", methods=["POST"])
 @jwt_required()
@@ -166,7 +170,7 @@ def request_return(res_id):
 
     # Mark returned, waiting librarian confirmation
     reservation.status = "returned"
-    reservation.returned_at = datetime.utcnow()
+    reservation.returned_at = datetime.now()
     db.session.commit()
 
     return jsonify({"msg": "Return requested"}), 200
