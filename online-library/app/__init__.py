@@ -13,30 +13,23 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
-
-    # Load config
     app.config.from_object("config.Config")
 
-    # Init extensions
     db.init_app(app)
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
+    CORS(app)
 
     from app.models import TokenBlocklist
-
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):
         jti = jwt_payload["jti"]
         token = db.session.query(TokenBlocklist.id).filter_by(jti=jti).scalar()
         return token is not None
 
-
-    CORS(app)
-
     from app import models  # Ensure models are imported for migrations
 
-    # Register blueprints
     from app.auth import auth_bp
     from app.routes import main_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")

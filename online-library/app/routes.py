@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db
-from app.models import Book
+from app.models import Book, Reservation, Notification
 from app.utils import role_required
 
 main_bp = Blueprint("main", __name__)
@@ -96,3 +97,93 @@ def delete_book(book_id):
     db.session.delete(book)
     db.session.commit()
     return jsonify({"msg": "Book deleted successfully"}), 200
+
+@main_bp.route("/reservations", methods=["POST"])
+@jwt_required()
+def create_reservation():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    book_id = data.get("book_id")
+    if not book_id:
+        return jsonify({"msg": "book_id is required"}), 400
+
+    book = Book.query.get(book_id)
+    if not book:
+        return jsonify({"msg": "Book not found"}), 404
+
+    if book.available_copies <= 0:
+        return jsonify({"msg": "No copies available"}), 400
+
+    reservation = Reservation(
+        user_id=user_id,
+        book_id=book_id,
+        status="pending",
+        created_at=datetime.utcnow(),
+        due_date=datetime.utcnow() + timedelta(days=14)  # 2 weeks loan
+    )
+    db.session.add(reservation)
+    db.session.commit()
+
+    return jsonify({"msg": "Reservation created", "id": reservation.id}), 201
+
+
+@main_bp.route("/reservations/<int:res_id>", methods=["PUT"])
+@role_required("librarian")
+def update_reservation(res_id):
+    data = request.get_json()
+    status = data.get("status")
+
+    if status in ["approved", "rejected"]:
+        return jsonify({"msg": "Alredy processed."}), 400
+
+    reservation = Reservation.query.get_or_404(res_id)
+    book = Book.query.get(reservation.book_id)
+
+    if status == "pending":
+        if book.available_copies <= 0:
+            return jsonify({"msg": "No copies available"}), 400
+        book.available_copies -= 1
+        reservation.status = "approved"
+        reservation.due_date = datetime.utcnow() + timedelta(days=14)
+    else:
+        reservation.status = "rejected"
+
+    db.session.commit()
+    return jsonify({"msg": f"Reservation {status}"}), 200
+
+@main_bp.route("/reservations/<int:res_id>/return", methods=["POST"])
+@jwt_required()
+def request_return(res_id):
+    user_id = get_jwt_identity()
+    reservation = Reservation.query.get_or_404(res_id)
+
+    if reservation.user_id != int(user_id):
+        return jsonify({"msg": "You can only return your own reservations"}), 403
+
+    if reservation.status != "approved":
+        return jsonify({"msg": "Only approved reservations can be returned"}), 400
+
+    # Mark returned, waiting librarian confirmation
+    reservation.status = "returned"
+    reservation.returned_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({"msg": "Return requested"}), 200
+
+
+@main_bp.route("/reservations/<int:res_id>/confirm_return", methods=["POST"])
+@role_required("librarian")
+def confirm_return(res_id):
+    reservation = Reservation.query.get_or_404(res_id)
+    book = Book.query.get(reservation.book_id)
+
+    if reservation.status != "returned":
+        return jsonify({"msg": "Reservation not marked for return"}), 400
+
+    # Restore available copies
+    book.available_copies += 1
+    reservation.status = "completed"
+    db.session.commit()
+
+    return jsonify({"msg": "Return confirmed, book available again"}), 200
