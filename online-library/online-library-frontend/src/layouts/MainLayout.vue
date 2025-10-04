@@ -1,31 +1,33 @@
 <template>
   <v-app>
-    <!-- App Bar -->
     <v-app-bar app color="primary" dark>
-      <v-app-bar-title>📚 Online Library</v-app-bar-title>
-      <v-spacer></v-spacer>
+      <v-toolbar-title>Online Library</v-toolbar-title>
+      <v-spacer />
 
-      <v-btn to="/" variant="text">Books</v-btn>
-      <v-btn v-if="auth.user" to="/reservations" variant="text">My Reservations</v-btn>
-      <v-btn v-if="auth.user?.role === 'librarian'" to="/admin" variant="text">Admin</v-btn>
+      <!-- 👇 Only show these if user is logged in -->
+      <template v-if="authStore.user">
+        <v-btn text to="/">Home</v-btn>
+        <v-btn text to="/books">Books</v-btn>
 
-      <v-btn v-if="auth.user" to="/notifications" variant="text">
-        Notifications
-        <v-badge
-          v-if="unreadCount > 0"
-          :content="unreadCount"
-          color="red"
-          offset-x="10"
-          offset-y="5"
-        />
-      </v-btn>
+        <!-- Librarian-only links -->
+        <v-btn
+          v-if="authStore.user.role === 'librarian'"
+          text
+          to="/admin"
+        >
+          Admin
+        </v-btn>
 
-      <v-btn v-if="!auth.user" to="/login" variant="text">Login</v-btn>
-      <v-btn v-if="!auth.user" to="/register" variant="text">Register</v-btn>
-      <v-btn v-if="auth.user" @click="auth.logout" variant="text">Logout</v-btn>
+        <v-btn text @click="logout">Logout</v-btn>
+      </template>
+
+      <!-- 👇 Shown when not logged in -->
+      <template v-else>
+        <v-btn text to="/login">Login</v-btn>
+        <v-btn text to="/register">Register</v-btn>
+      </template>
     </v-app-bar>
 
-    <!-- Router Content -->
     <v-main>
       <router-view />
     </v-main>
@@ -33,22 +35,18 @@
 </template>
 
 <script setup>
-import { useAuthStore } from '@/stores/auth'
-import { ref, onMounted } from 'vue'
-import { api } from '@/axios/api'
+import { useAuthStore } from '../store/auth'  // ✅ import your Pinia store
+import { useRouter } from 'vue-router'
 
-const auth = useAuthStore()
-const unreadCount = ref(0)
+const authStore = useAuthStore()
+const router = useRouter()
 
-async function fetchNotifications() {
-  if (!auth.token) return
+const logout = async () => {
   try {
-    const res = await api.get('/notifications')
-    unreadCount.value = (res.data.data || res.data).filter(n => !n.read).length
-  } catch (e) {
-    console.error(e)
+    await authStore.logout()
+    router.push('/login')
+  } catch (error) {
+    console.error('Logout failed:', error)
   }
 }
-
-onMounted(fetchNotifications)
 </script>
