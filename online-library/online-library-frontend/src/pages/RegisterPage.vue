@@ -28,14 +28,6 @@
             class="mb-4"
           />
 
-          <v-select
-            v-model="role"
-            :items="['member', 'librarian']"
-            label="Account Type"
-            outlined
-            class="mb-4"
-          />
-
           <v-alert v-if="error" type="error" variant="tonal" class="mb-3">
             {{ error }}
           </v-alert>
@@ -63,7 +55,6 @@ const router = useRouter()
 const name = ref('')
 const email = ref('')
 const password = ref('')
-const role = ref('member')
 const error = ref('')
 const loading = ref(false)
 
@@ -71,7 +62,7 @@ async function onSubmit() {
   loading.value = true
   error.value = ''
   try {
-    await auth.register(name.value, email.value, password.value, role.value)
+    await auth.register({name: name.value, email: email.value, password: password.value})
     router.push('/login')
   } catch (err) {
     error.value = err.response?.data?.msg || 'Registration failed'

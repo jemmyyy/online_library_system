@@ -147,6 +147,7 @@ def update_reservation(res_id):
 
     if status == "approved":
         if book.available_copies <= 0:
+            reservation.status = "rejected"
             return jsonify({"msg": "No copies available"}), 400
         book.available_copies -= 1
         reservation.status = "approved"
@@ -173,7 +174,7 @@ def request_return(res_id):
         return jsonify({"msg": "Only approved reservations can be returned"}), 400
 
     # Mark returned, waiting librarian confirmation
-    reservation.status = "returned"
+    reservation.status = "return_requested"
     reservation.returned_at = datetime.now()
     db.session.commit()
 
@@ -188,7 +189,7 @@ def confirm_return(res_id):
     reservation = Reservation.query.get_or_404(res_id)
     book = Book.query.get(reservation.book_id)
 
-    if reservation.status != "returned":
+    if reservation.status != "return_requested":
         return jsonify({"msg": "Reservation not marked for return"}), 400
 
     # Restore available copies
@@ -199,6 +200,19 @@ def confirm_return(res_id):
     create_notification(reservation.user_id, f"Your return for '{book.title}' has been confirmed.")
 
     return jsonify({"msg": "Return confirmed, book available again"}), 200
+
+@main_bp.route("/reservations/<int:res_id>/cancel_return", methods=["POST"])
+@jwt_required()
+def cancel_return_request(res_id):
+    reservation = Reservation.query.get_or_404(res_id)
+
+    if reservation.status != "return_requested":
+        return jsonify({"msg": "No return request to cancel"}), 400
+    
+    reservation.status = "approved"
+    reservation.returned_at = None
+    db.session.commit()
+    return jsonify({"msg": "Return request cancelled"}), 200
 
 @main_bp.route("/notifications", methods=["GET"])
 @jwt_required()
@@ -230,6 +244,23 @@ def get_notifications():
         }
     }), 200
 
+@main_bp.route("/notifications/<int:notif_id>/read", methods=["POST"])
+@jwt_required()
+def mark_notification_read(notif_id):
+    user_id = get_jwt_identity()
+    notification = Notification.query.get_or_404(notif_id)
+
+    if notification.user_id != int(user_id):
+        return jsonify({"msg": "You can only mark your own notifications"}), 403
+    
+    if notification.read:
+        return jsonify({"msg": "Notification already marked as read"}), 400
+
+    notification.read = True
+    db.session.commit()
+    return jsonify({"msg": "Notification marked as read"}), 200
+
+
 @main_bp.route("/reservations", methods=["GET"])
 @jwt_required()
 def list_reservations():
@@ -238,10 +269,14 @@ def list_reservations():
 
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
+    status = request.args.get("status", "", type=str)
 
     query = Reservation.query
     if claims.get("role") != "librarian":
         query = query.filter_by(user_id=user_id)
+
+    if status:
+        query = query.filter_by(status=status)
 
     pagination = query.order_by(Reservation.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 

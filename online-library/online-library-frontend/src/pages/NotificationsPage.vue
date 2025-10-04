@@ -1,48 +1,79 @@
 <template>
-  <v-container class="py-6">
-    <v-row>
-      <v-col cols="12">
-        <h2 class="text-h5 mb-4">Notifications</h2>
+  <v-container>
+    <h2 class="mb-6">🔔 Notifications</h2>
 
-        <v-alert
-          v-if="notificationStore.loading"
-          type="info"
-          variant="tonal"
+    <v-card elevation="2">
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div class="text-h6">Recent Notifications</div>
+        <div>
+          <v-btn icon="mdi-refresh" @click="fetchNotifications" />
+        </div>
+      </v-card-title>
+
+      <v-card-text>
+        <v-data-table
+          :headers="headers"
+          :items="notificationStore.list"
+          :items-per-page="8"
+          :loading="loading"
+          class="elevation-1"
         >
-          Loading notifications...
-        </v-alert>
+          <template #item.read="{ item }">
+            <v-chip
+              :color="item.read ? 'green' : 'red'"
+              :variant="item.read ? 'flat' : 'elevated'"
+              size="small"
+              text-color="white"
+            >
+              {{ item.read ? 'Read' : 'Unread' }}
+            </v-chip>
+          </template>
 
-        <v-alert
-          v-else-if="notificationStore.list.length === 0"
-          type="info"
-          variant="tonal"
-        >
-          No notifications yet.
-        </v-alert>
+          <template #item.message="{ item }">
+            <div
+              :class="['notif-message', { unread: !item.read }]"
+              @click="!item.read && markAsRead(item)"
+            >
+              <v-icon
+                v-if="!item.read"
+                icon="mdi-bell-ring"
+                color="amber-darken-2"
+                class="mr-2"
+              />
+              {{ item.message }}
+            </div>
+          </template>
 
-        <v-list v-else two-line>
-          <v-list-item
-            v-for="n in notificationStore.list"
-            :key="n.id"
-            :class="{ 'bg-grey-lighten-4': !n.read }"
-            @click="markAsRead(n)"
-          >
-            <v-list-item-title>{{ n.message }}</v-list-item-title>
-            <v-list-item-subtitle>
-              {{ new Date(n.created_at).toLocaleString() }}
-            </v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
-      </v-col>
-    </v-row>
+          <template #item.created_at="{ item }">
+            <span class="text-caption">
+              {{ new Date(item.created_at).toLocaleString() }}
+            </span>
+          </template>
+
+          <template #no-data>
+            <v-alert type="info" border="start" color="blue-lighten-4">
+              You have no notifications.
+            </v-alert>
+          </template>
+        </v-data-table>
+      </v-card-text>
+    </v-card>
   </v-container>
 </template>
 
 <script setup>
+import { ref, onMounted, onActivated } from 'vue'
+import { api } from '../axios/api.js'
 import { useNotificationStore } from '../store/notifications.js'
-import { onMounted, onActivated } from 'vue'
 
 const notificationStore = useNotificationStore()
+const loading = ref(false)
+
+const headers = [
+  { title: 'Message', value: 'message' },
+  { title: 'Status', value: 'read' },
+  { title: 'Created At', value: 'created_at' },
+]
 
 const markAsRead = (n) => {
   notificationStore.markAsRead(n.id)
@@ -52,4 +83,20 @@ const markAsRead = (n) => {
 
 onMounted(() => notificationStore.fetchNotifications())
 onActivated(() => notificationStore.fetchNotifications())
+
 </script>
+
+
+<style scoped>
+.notif-message {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.notif-message.unread {
+  font-weight: 600;
+  color: var(--v-theme-primary);
+}
+.notif-message.unread:hover {
+  text-decoration: underline;
+}
+</style>

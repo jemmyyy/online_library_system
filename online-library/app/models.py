@@ -16,8 +16,9 @@ class User(db.Model):
 
 class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(200), nullable=False, unique=True)
     author = db.Column(db.String(120), nullable=False)
+    genre = db.Column(db.String(120), nullable=False, default="General")
     isbn = db.Column(db.String(50), unique=True, nullable=True)
     available_copies = db.Column(db.Integer, default=1)
     total_copies = db.Column(db.Integer, default=1)

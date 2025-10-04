@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app import db, bcrypt
 from app.models import User, TokenBlocklist
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
-
+from flask_jwt_extended import (
+    create_access_token, create_refresh_token,
+    jwt_required, get_jwt_identity, get_jwt
+)
 auth_bp = Blueprint("auth", __name__)
 blacklist = set()
 
@@ -34,7 +36,7 @@ def register():
 # LOGIN
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(force=True)
 
     if not data or not data.get("email") or not data.get("password"):
         return jsonify({"msg": "Missing email or password"}), 400
@@ -48,9 +50,15 @@ def login():
         identity=str(user.id),
         additional_claims={"role": user.role}
         )
+    refresh_token = create_refresh_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role}
+        )
+    
 
     return jsonify({
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "user": {
             "id": user.id,
             "name": user.name,
@@ -58,6 +66,15 @@ def login():
             "role": user.role
         }
     }), 200
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    """Generate a new access token using a valid refresh token."""
+    identity = get_jwt_identity()
+    claims = get_jwt()
+    new_access_token = create_access_token(identity=identity, addditional_claims={"role": claims.get("role")})
+    return jsonify({"access_token": new_access_token}), 200
 
 # CURRENT USER
 @auth_bp.route("/me", methods=["GET"])
