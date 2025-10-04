@@ -15,7 +15,7 @@ def seed_data():
         librarian = User(
             email="lib@library.com",
             name="Admin Librarian",
-            password=generate_password_hash("admin123"),
+            password_hash=generate_password_hash("admin123"),
             role="librarian"
         )
         db.session.add(librarian)
