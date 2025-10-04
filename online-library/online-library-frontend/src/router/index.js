@@ -3,22 +3,30 @@ import MainLayout from '../layouts/MainLayout.vue'
 
 // Pages
 import HomePage from '../pages/HomePage.vue'
+import BookDetailPage from '../pages/BookDetailPage.vue'
+import ReservationsPage from '../pages/ReservationsPage.vue'
+import AdminDashboard from '../pages/AdminDashboard.vue'
+import NotificationsPage from '../pages/NotificationsPage.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import RegisterPage from '../pages/RegisterPage.vue'
 
-import { useAuthStore } from '../store/auth'
+import { useAuthStore } from '../store/auth.js'
 
 const routes = [
   {
     path: '/',
     component: MainLayout,
     children: [
-      { path: '', name: 'home', component: HomePage },
-    ],
-  },
-  { path: '/login', name: 'login', component: LoginPage, meta: { guestOnly: true } },
-  { path: '/register', name: 'register', component: RegisterPage, meta: { guestOnly: true } },
-  { path: '/:pathMatch(.*)*', redirect: '/' }
+      { path: '/', name: 'home', component: HomePage },
+      { path: '/books/:id', name: 'book-detail', component: BookDetailPage },
+      { path: '/reservations', name: 'reservations', component: ReservationsPage, meta: { requiresAuth: true } },
+      { path: '/notifications', name: 'notifications', component: NotificationsPage, meta: { requiresAuth: true } },
+      { path: '/admin', name: 'admin', component: AdminDashboard, meta: { librarianOnly: true } },
+      { path: '/login', name: 'login', component: LoginPage, meta: { guestOnly: true } },
+      { path: '/register', name: 'register', component: RegisterPage, meta: { guestOnly: true } },
+    ]
+},
+{ path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 const router = createRouter({
@@ -33,7 +41,7 @@ router.beforeEach(async (to, from, next) => {
   // Restore session if not loaded yet
   if (!auth.user && auth.token) {
     try {
-      await auth.fetchMe()
+      await auth.fetchUser()
     } catch {
       auth.logout()
     }

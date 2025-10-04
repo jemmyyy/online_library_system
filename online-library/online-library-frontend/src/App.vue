@@ -1,8 +1,5 @@
 <template>
-  <v-app>
-    <!-- All pages will be injected here -->
-    <router-view />
-  </v-app>
+  <router-view />
 </template>
 
 <script>

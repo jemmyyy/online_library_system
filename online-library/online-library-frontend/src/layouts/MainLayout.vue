@@ -1,33 +1,33 @@
 <template>
   <v-app>
+    <!-- App Bar -->
     <v-app-bar app color="primary" dark>
-      <v-toolbar-title>Online Library</v-toolbar-title>
-      <v-spacer />
+      <v-app-bar-title>📚 Online Library</v-app-bar-title>
+      <v-spacer></v-spacer>
 
-      <!-- 👇 Only show these if user is logged in -->
-      <template v-if="authStore.user">
-        <v-btn text to="/">Home</v-btn>
-        <v-btn text to="/books">Books</v-btn>
+      <v-btn to="/" exact variant="text">Home</v-btn>
+      <v-btn v-if="auth.user" to="/reservations" variant="text">My Reservations</v-btn>
+      <v-btn v-if="auth.user?.role === 'librarian'" to="/admin" variant="text">Admin</v-btn>
 
-        <!-- Librarian-only links -->
-        <v-btn
-          v-if="authStore.user.role === 'librarian'"
-          text
-          to="/admin"
+      <v-btn v-if="auth.user" to="/notifications" variant="text">
+        Notifications
+        <v-badge
+          v-if="notificationStore.unreadCount > 0"
+          :content="notificationStore.unreadCount"
+          color="red"
+          offset-x="10"
+          offset-y="5"
         >
-          Admin
-        </v-btn>
+            <v-icon>mdi-bell</v-icon>
+        </v-badge>
+      </v-btn>
 
-        <v-btn text @click="logout">Logout</v-btn>
-      </template>
-
-      <!-- 👇 Shown when not logged in -->
-      <template v-else>
-        <v-btn text to="/login">Login</v-btn>
-        <v-btn text to="/register">Register</v-btn>
-      </template>
+      <v-btn v-if="!auth.user" to="/login" variant="text">Login</v-btn>
+      <v-btn v-if="!auth.user" to="/register" variant="text">Register</v-btn>
+      <v-btn v-if="auth.user" @click="auth.logout" variant="text">Logout</v-btn>
     </v-app-bar>
 
+    <!-- Router Content -->
     <v-main>
       <router-view />
     </v-main>
@@ -35,18 +35,21 @@
 </template>
 
 <script setup>
-import { useAuthStore } from '../store/auth'  // ✅ import your Pinia store
-import { useRouter } from 'vue-router'
+import { useNotificationStore } from '../store/notifications.js'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '../store/auth.js'
+import { api } from '../axios/api.js'
 
-const authStore = useAuthStore()
-const router = useRouter()
+const auth = useAuthStore()
+const notificationStore = useNotificationStore()
+let interval = null
 
-const logout = async () => {
-  try {
-    await authStore.logout()
-    router.push('/login')
-  } catch (error) {
-    console.error('Logout failed:', error)
-  }
-}
+onMounted(() => {
+  notificationStore.fetchNotifications()
+  interval = setInterval(notificationStore.fetchNotifications, 10000)
+})
+
+onUnmounted(() => {
+  clearInterval(interval)
+})
 </script>

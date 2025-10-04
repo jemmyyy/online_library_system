@@ -7,3 +7,14 @@ export const authApi = axios.create({
     'Content-Type': 'application/json'
   }
 })
+
+authApi.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Do nothing here (silent)
+      console.warn('Unauthorized (likely expired token)')
+    }
+    return Promise.reject(error)
+  }
+)

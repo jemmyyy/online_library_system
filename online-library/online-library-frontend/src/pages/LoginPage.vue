@@ -55,7 +55,7 @@ async function onSubmit() {
   loading.value = true
   error.value = ''
   try {
-    await auth.login(email.value, password.value)
+    await auth.login({email: email.value, password: password.value})
     const redirect = route.query.redirect || '/'
     router.push(redirect)
   } catch (err) {
