@@ -23,12 +23,12 @@ authApi.interceptors.response.use(
     const authStore = useAuthStore()
     const originalRequest = error.config
 
-    // 🚫 Skip for logout/refresh endpoints to prevent loops
+    // Skip for logout/refresh endpoints to prevent loops
     if (!originalRequest || originalRequest.url.includes('/logout') || originalRequest.url.includes('/refresh')) {
       return Promise.reject(error)
     }
 
-    // ⚠️ Handle access token expiry
+    // Handle access token expiry
     if (error.response?.status === 401 && !originalRequest._retry && !authStore.isLoggingOut) {
       originalRequest._retry = true
       try {
@@ -50,7 +50,7 @@ authApi.interceptors.response.use(
 
         return authApi(originalRequest)
       } catch (err) {
-        console.warn('🔒 Token refresh failed — logging out')
+        console.warn('Token refresh failed — logging out')
         await authStore.logout(true)
         router.push('/login')
         return Promise.reject(err)

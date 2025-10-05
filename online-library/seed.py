@@ -1,6 +1,6 @@
 # seed.py
 import random
-from app import create_app, db
+from app import create_app, db, bcrypt
 from app.models import User, Book
 from werkzeug.security import generate_password_hash
 
@@ -15,7 +15,7 @@ def seed_data():
         librarian = User(
             email="lib@library.com",
             name="Admin Librarian",
-            password_hash=generate_password_hash("admin123"),
+            password_hash=bcrypt.generate_password_hash("admin123").decode("utf-8"),
             role="librarian"
         )
         db.session.add(librarian)

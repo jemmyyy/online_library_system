@@ -7,8 +7,8 @@
         <p>{{ book.description }}</p>
         <p>Available: {{ book.available_copies }}</p>
       </v-card-text>
-      <v-card-actions>
-        <v-btn v-if="auth.user" color="primary" @click="reserveBook">Reserve</v-btn>
+      <v-card-actions v-if="auth.user?.role !== 'librarian'">
+        <v-btn v-if="auth.user?.role === 'member'" color="primary" @click="reserveBook">Reserve</v-btn>
         <v-btn v-else to="/login">Login to Reserve</v-btn>
       </v-card-actions>
     </v-card>

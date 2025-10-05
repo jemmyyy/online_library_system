@@ -49,11 +49,13 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       try {
         await auth.post('/register', payload)
+        await this.login({ email: payload.email, password: payload.password })
       } catch (err) {
         this.error = err.response?.data?.message || 'Registration failed'
         throw err
       } finally {
         this.loading = false
+        window.location.href = '/'
       }
     },
 
@@ -66,7 +68,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = data
       } catch (err) {
         if (err.response?.status === 401) {
-          console.warn('⚠️ Access token invalid or expired. Attempting refresh...')
+          console.warn('Access token invalid or expired. Attempting refresh...')
           await this.tryRefreshToken()
         } else {
           console.error('Failed to fetch user:', err)

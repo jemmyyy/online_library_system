@@ -6,10 +6,10 @@
       <v-spacer></v-spacer>
 
       <v-btn to="/" exact variant="text">Home</v-btn>
-      <v-btn v-if="auth.user" to="/reservations" variant="text">My Reservations</v-btn>
+      <v-btn v-if="auth.user?.role === 'member'" to="/reservations" variant="text">My Reservations</v-btn>
       <v-btn v-if="auth.user?.role === 'librarian'" to="/admin" variant="text">Admin</v-btn>
 
-      <v-btn v-if="auth.user" to="/notifications" variant="text">
+      <v-btn v-if="auth.user?.role === 'member'" to="/notifications" variant="text">
         Notifications
         <v-badge
           v-if="notificationStore.unreadCount > 0"

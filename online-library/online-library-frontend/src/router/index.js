@@ -19,13 +19,13 @@ const routes = [
     children: [
       { path: '/', name: 'home', component: HomePage },
       { path: '/books/:id', name: 'book-detail', component: BookDetailPage },
-      { path: '/reservations', name: 'reservations', component: ReservationsPage, meta: { requiresAuth: true } },
-      { path: '/notifications', name: 'notifications', component: NotificationsPage, meta: { requiresAuth: true } },
-      { path: '/admin', name: 'admin', component: AdminDashboard, meta: { librarianOnly: true } },
-      { path: '/login', name: 'login', component: LoginPage, meta: { guestOnly: true } },
-      { path: '/register', name: 'register', component: RegisterPage, meta: { guestOnly: true } },
+      { path: '/reservations', name: 'reservations', component: ReservationsPage, meta: { requiresAuth: true, memberOnly: true } },
+      { path: '/notifications', name: 'notifications', component: NotificationsPage, meta: { requiresAuth: true, memberOnly: true} },
+      { path: '/admin', name: 'admin', component: AdminDashboard, meta: { librarianOnly: true } } 
     ]
-},
+  },
+{ path: '/login', name: 'login', component: LoginPage, meta: { guestOnly: true } },
+{ path: '/register', name: 'register', component: RegisterPage, meta: { guestOnly: true } },
 { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
@@ -37,6 +37,7 @@ const router = createRouter({
 // 🧩 Route Guards
 router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
+  await auth.fetchUser()
 
   // Restore session if not loaded yet
   if (!auth.user && auth.token) {
@@ -54,6 +55,11 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.librarianOnly && auth.user?.role !== 'librarian') {
     // librarian-only restriction
+    return next({ name: 'home' })
+  }
+
+  if (to.meta.memberOnly && auth.user?.role !== 'member') {
+    // member-only restriction
     return next({ name: 'home' })
   }
 
